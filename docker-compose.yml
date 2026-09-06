@@ -1,0 +1,29 @@
+services:
+  asr-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: asr-service
+    restart: unless-stopped
+    ports:
+      - "${WHISPER_PORT:-8787}:8787"
+    environment:
+      WHISPER_HOST: 0.0.0.0
+      WHISPER_PORT: 8787
+      WHISPER_MODEL_PATH: /models/${WHISPER_MODEL_FILE:-ggml-large-v3-turbo.bin}
+      WHISPER_PUBLIC_WS_URL: ${WHISPER_PUBLIC_WS_URL:-ws://127.0.0.1:8787}
+      WHISPER_PARTIAL_INTERVAL_MS: ${WHISPER_PARTIAL_INTERVAL_MS:-1200}
+      RUST_LOG: ${RUST_LOG:-asr_service=info,tower_http=info}
+    volumes:
+      # Модель (~1.5ГБ) не запекается в образ — монтируется с хоста.
+      # По умолчанию — локальная папка ./models (см. README), но можно
+      # указать в .env, например, уже существующую папку trainer-client:
+      # WHISPER_MODELS_DIR=C:/Users/<you>/AppData/Roaming/com.rizo.trainer-client/whisper-models
+      - ${WHISPER_MODELS_DIR:-./models}:/models:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
